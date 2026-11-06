@@ -16,8 +16,8 @@ android {
         applicationId = "Com.fire_AI.in"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.2.0"
     }
 
     buildTypes {
@@ -38,6 +38,20 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    signingConfigs {
+        create("release") {
+            // The permanent keystore stays outside the repository.
+            storeFile = file(System.getenv("FIRE_AI_KEYSTORE") ?: "/home/ubuntu/fire-ai-for-tv-keys/fire-ai-release.jks")
+            storePassword = System.getenv("FIRE_AI_KEYSTORE_PASSWORD") ?: ""
+            keyAlias = "fire-ai-release"
+            keyPassword = System.getenv("FIRE_AI_KEYSTORE_PASSWORD") ?: ""
+        }
+    }
+
+    buildTypes.getByName("release") {
+        signingConfig = signingConfigs.getByName("release")
     }
 
     packaging {
@@ -73,5 +87,6 @@ dependencies {
     implementation("androidx.credentials:credentials:1.5.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    implementation("com.google.android.gms:play-services-auth:21.4.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
 }
