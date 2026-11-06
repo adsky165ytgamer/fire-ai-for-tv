@@ -1,4 +1,4 @@
-package com.mangaauthority.tvai.ui
+package Com.fire_AI.`in`.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -56,10 +56,10 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.mangaauthority.tvai.data.Author
-import com.mangaauthority.tvai.data.ChatMessage
-import com.mangaauthority.tvai.ui.components.MarkdownText
-import com.mangaauthority.tvai.ui.components.focusRing
+import Com.fire_AI.`in`.data.Author
+import Com.fire_AI.`in`.data.ChatMessage
+import Com.fire_AI.`in`.ui.components.MarkdownText
+import Com.fire_AI.`in`.ui.components.focusRing
 import kotlinx.coroutines.launch
 
 private val PillShape = RoundedCornerShape(50)

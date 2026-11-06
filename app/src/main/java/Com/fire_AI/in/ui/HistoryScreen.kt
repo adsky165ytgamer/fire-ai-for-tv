@@ -1,4 +1,4 @@
-package com.mangaauthority.tvai.ui
+package Com.fire_AI.`in`.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,8 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.mangaauthority.tvai.data.ConversationSummary
-import com.mangaauthority.tvai.ui.components.focusRing
+import Com.fire_AI.`in`.data.ConversationSummary
+import Com.fire_AI.`in`.ui.components.focusRing
 import java.text.DateFormat
 import java.util.Date
 

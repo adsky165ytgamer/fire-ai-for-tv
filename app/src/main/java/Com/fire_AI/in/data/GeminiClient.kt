@@ -1,4 +1,4 @@
-package com.mangaauthority.tvai.data
+package Com.fire_AI.`in`.data
 
 import java.io.IOException
 import java.net.SocketTimeoutException

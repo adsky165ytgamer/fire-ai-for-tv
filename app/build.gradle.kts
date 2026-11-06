@@ -2,17 +2,18 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
+    id("com.google.gms.google-services")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
-    namespace = "com.mangaauthority.tvai"
+    namespace = "Com.fire_AI.in"
     // Material 3 Expressive (material3 1.5.0-alpha) and current Compose need compileSdk 36.
     // minSdk 24 / targetSdk 34 keep behaviour identical on older TV boxes.
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.mangaauthority.tvai"
+        applicationId = "Com.fire_AI.in"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
@@ -65,4 +66,12 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     implementation("androidx.core:core-ktx:1.17.0")
+
+    // Firebase Authentication + modern Google Credential Manager sign-in.
+    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("androidx.credentials:credentials:1.5.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
 }

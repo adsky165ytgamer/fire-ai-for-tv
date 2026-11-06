@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "620812808689",
+    "project_id": "fireai-2b2e4",
+    "storage_bucket": "fireai-2b2e4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:620812808689:android:dd107d54467f2080275450",
+        "android_client_info": {
+          "package_name": "Com.fire_AI.in"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "620812808689-vqd37m78gtkmnd039ai3c4glnmn2gi5e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNuH9i3gZoNiQ0a-__zn912F3FIx0jw4o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "620812808689-vqd37m78gtkmnd039ai3c4glnmn2gi5e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

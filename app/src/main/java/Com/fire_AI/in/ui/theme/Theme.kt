@@ -1,4 +1,4 @@
-package com.mangaauthority.tvai.ui.theme
+package Com.fire_AI.`in`.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

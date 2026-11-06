@@ -1,6 +1,6 @@
-# AndroidTVAI
+# Fire AI for TV
 
-Native Android chat app for Gemini, built TV-first and usable on phones. Package: `com.mangaauthority.tvai`.
+Native Android chat app for Gemini, built TV-first and usable on phones. Package: `Com.fire_AI.in`.
 No Firebase, no backend, no local AI: the app calls the Gemini Developer API directly with a key you provide.
 
 ## Architecture
@@ -11,7 +11,7 @@ No Firebase, no backend, no local AI: the app calls the Gemini Developer API dir
 - `ui/*Screen.kt`, `ui/components/Markdown.kt`: Compose screens (Material 3 Expressive) and a small Markdown renderer.
 
 ## Build
-Push to GitHub. `.github/workflows/build.yml` builds the debug APK (Actions tab > latest run > `AndroidTVAI-debug-apk`).
+Push to GitHub. `.github/workflows/build.yml` builds the debug APK (Actions tab > latest run > `Fire AI for TV-debug-apk`).
 Locally: JDK 17, Gradle 9.3.1, Android Gradle Plugin 9.1.1, and Android API 37. Run `gradle :app:assembleDebug`. The uploaded source was compiled successfully with this toolchain.
 
 ## First run

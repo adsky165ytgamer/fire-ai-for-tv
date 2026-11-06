@@ -1,4 +1,4 @@
-package com.mangaauthority.tvai.data
+package Com.fire_AI.`in`.data
 
 import android.content.Context
 import java.io.File

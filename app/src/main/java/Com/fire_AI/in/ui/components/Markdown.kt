@@ -1,4 +1,4 @@
-package com.mangaauthority.tvai.ui.components
+package Com.fire_AI.`in`.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

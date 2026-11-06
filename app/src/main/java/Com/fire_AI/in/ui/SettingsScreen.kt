@@ -1,4 +1,4 @@
-package com.mangaauthority.tvai.ui
+package Com.fire_AI.`in`.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,7 +37,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.mangaauthority.tvai.ui.components.focusRing
+import Com.fire_AI.`in`.ui.components.focusRing
 
 private val PillShape = RoundedCornerShape(50)
 

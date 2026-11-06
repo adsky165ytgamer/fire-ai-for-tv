@@ -1,4 +1,4 @@
-package com.mangaauthority.tvai.ui
+package Com.fire_AI.`in`.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,7 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 enum class Screen { Chat, History, Settings }
 
 @Composable
-fun TvAiApp(chatVm: ChatViewModel, settingsVm: SettingsViewModel, isTv: Boolean) {
+fun TvAiApp(chatVm: ChatViewModel, settingsVm: SettingsViewModel, isTv: Boolean, signedInEmail: String? = null) {
     var screen by rememberSaveable { mutableStateOf(Screen.Chat) }
     val chat by chatVm.state.collectAsStateWithLifecycle()
     val settings by settingsVm.state.collectAsStateWithLifecycle()

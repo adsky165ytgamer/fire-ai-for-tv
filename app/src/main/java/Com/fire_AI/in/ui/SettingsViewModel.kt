@@ -1,14 +1,14 @@
-package com.mangaauthority.tvai.ui
+package Com.fire_AI.`in`.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.mangaauthority.tvai.data.GeminiClient
-import com.mangaauthority.tvai.data.GeminiError
-import com.mangaauthority.tvai.data.KeyVault
-import com.mangaauthority.tvai.data.ModelInfo
-import com.mangaauthority.tvai.data.SaveResult
-import com.mangaauthority.tvai.data.SettingsStore
+import Com.fire_AI.`in`.data.GeminiClient
+import Com.fire_AI.`in`.data.GeminiError
+import Com.fire_AI.`in`.data.KeyVault
+import Com.fire_AI.`in`.data.ModelInfo
+import Com.fire_AI.`in`.data.SaveResult
+import Com.fire_AI.`in`.data.SettingsStore
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
