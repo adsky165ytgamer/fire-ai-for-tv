@@ -45,13 +45,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private val ids = AtomicLong(0)
     private var conversationId = UUID.randomUUID().toString()
+    private var title: String? = null
     private var streamJob: Job? = null
     private var epoch = 0
 
     private val _state = MutableStateFlow(ChatUiState(hasKey = vault.hasKey(), model = settings.model))
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
-    /** Call when returning from Settings. */
+    /** Call when returning from Models or Settings. */
     fun refreshSettings() {
         _state.update { it.copy(hasKey = vault.hasKey(), model = settings.model) }
     }
@@ -67,23 +68,104 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun send(text: String): Boolean {
         val prompt = text.trim()
         if (prompt.isEmpty() || _state.value.isStreaming) return false
-        if (!vault.hasKey()) {
-            _state.update { it.copy(hasKey = false, messages = (it.messages + msg(Author.Model, GeminiError.MissingKey().message.orEmpty(), true)).takeLast(MAX_MESSAGES)) }
-            return false
-        }
+        if (!preflight()) return false
+        _state.update { it.copy(messages = (it.messages + msg(Author.User, prompt)).takeLast(MAX_MESSAGES)) }
+        startStream()
+        return true
+    }
 
-        val userMsg = msg(Author.User, prompt)
-        val requestMessages = (_state.value.messages.filter { !it.isError } + userMsg).takeLast(HISTORY_MESSAGES)
-        val myEpoch = epoch
+    /** Drops the last reply and asks again with the same prompt and the same model. */
+    fun regenerate() {
+        val s = _state.value
+        if (s.isStreaming) return
+        val idx = s.messages.indexOfLast { it.author == Author.User && !it.isError }
+        if (idx < 0 || !preflight()) return
+        _state.update { it.copy(messages = it.messages.take(idx + 1)) }
+        startStream()
+    }
+
+    fun stop() {
+        streamJob?.cancel()
+    }
+
+    fun newChat() {
+        epoch++
+        streamJob?.cancel()
+        streamJob = null
+        conversationId = UUID.randomUUID().toString()
+        title = null
+        _state.update { it.copy(messages = emptyList(), streamingText = "", isStreaming = false) }
+    }
+
+    /** Clears the open conversation and deletes its saved copy. */
+    fun clearConversation() {
+        val id = conversationId
+        newChat()
+        viewModelScope.launch {
+            runCatching { store.delete(id) }
+            refreshHistory()
+        }
+    }
+
+    fun openConversation(id: String) {
+        viewModelScope.launch {
+            val c = store.load(id) ?: return@launch
+            epoch++
+            streamJob?.cancel()
+            streamJob = null
+            conversationId = c.id
+            title = c.title
+            _state.update {
+                it.copy(
+                    messages = c.messages.map { m -> m.copy(id = ids.incrementAndGet()) }.takeLast(MAX_MESSAGES),
+                    streamingText = "",
+                    isStreaming = false,
+                )
+            }
+        }
+    }
+
+    fun renameConversation(id: String, newTitle: String) {
+        val t = newTitle.trim().take(80)
+        if (t.isEmpty()) return
+        if (id == conversationId) title = t
+        viewModelScope.launch {
+            runCatching { store.rename(id, t) }
+            refreshHistory()
+        }
+    }
+
+    fun deleteConversation(id: String) {
+        viewModelScope.launch {
+            runCatching { store.delete(id) }
+            if (id == conversationId) newChat()
+            refreshHistory()
+        }
+    }
+
+    // ---- internals ----
+
+    /** Shows an honest message instead of sending when the app isn't set up. */
+    private fun preflight(): Boolean {
+        val error: GeminiError = when {
+            !vault.hasKey() -> GeminiError.MissingKey()
+            settings.model.isBlank() -> GeminiError.NoModel()
+            else -> return true
+        }
         _state.update {
             it.copy(
-                messages = (it.messages + userMsg).takeLast(MAX_MESSAGES),
-                streamingText = "",
-                isStreaming = true,
-                hasKey = true,
+                hasKey = vault.hasKey(),
                 model = settings.model,
+                messages = (it.messages + msg(Author.Model, error.message.orEmpty(), true)).takeLast(MAX_MESSAGES),
             )
         }
+        return false
+    }
+
+    private fun startStream() {
+        val requestMessages = _state.value.messages.filter { !it.isError }.takeLast(HISTORY_MESSAGES)
+        val myEpoch = epoch
+        _state.update { it.copy(streamingText = "", isStreaming = true, hasKey = true, model = settings.model) }
 
         streamJob = viewModelScope.launch {
             val sb = StringBuilder()
@@ -117,44 +199,6 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 commit(sb.toString(), GeminiError.Other("").message, myEpoch)
             }
         }
-        return true
-    }
-
-    fun stop() {
-        streamJob?.cancel()
-    }
-
-    fun newChat() {
-        epoch++
-        streamJob?.cancel()
-        streamJob = null
-        conversationId = UUID.randomUUID().toString()
-        _state.update { it.copy(messages = emptyList(), streamingText = "", isStreaming = false) }
-    }
-
-    fun openConversation(id: String) {
-        viewModelScope.launch {
-            val c = store.load(id) ?: return@launch
-            epoch++
-            streamJob?.cancel()
-            streamJob = null
-            conversationId = c.id
-            _state.update {
-                it.copy(
-                    messages = c.messages.map { m -> m.copy(id = ids.incrementAndGet()) }.takeLast(MAX_MESSAGES),
-                    streamingText = "",
-                    isStreaming = false,
-                )
-            }
-        }
-    }
-
-    fun deleteConversation(id: String) {
-        viewModelScope.launch {
-            runCatching { store.delete(id) }
-            if (id == conversationId) newChat()
-            refreshHistory()
-        }
     }
 
     private fun commit(replyRaw: String, errorText: String?, myEpoch: Int) {
@@ -172,7 +216,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private fun persist() {
         val saved = _state.value.messages.filter { !it.isError }
         val first = saved.firstOrNull { it.author == Author.User } ?: return
-        val conv = Conversation(conversationId, first.text.lineSequence().first().take(60), System.currentTimeMillis(), saved)
+        val name = title ?: first.text.lineSequence().first().take(60).also { title = it }
+        val conv = Conversation(conversationId, name, System.currentTimeMillis(), saved)
         viewModelScope.launch { runCatching { store.save(conv) } }
     }
 

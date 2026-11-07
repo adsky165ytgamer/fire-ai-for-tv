@@ -1,0 +1,2 @@
+7359898b7530c5a027c42fdae58e3e1cdba8453e8874da7088659f2049c661ae  /home/ubuntu/fire-ai-for-tv-artifacts/FireAI-for-TV-v0.3.0-debug.apk
+9c16d5e073906ebdcbe6ab981b386245ca54523525faa1057c0683013e35344f  /home/ubuntu/fire-ai-for-tv-artifacts/FireAI-for-TV-v0.3.0-release.apk

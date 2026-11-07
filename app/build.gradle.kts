@@ -8,16 +8,14 @@ plugins {
 
 android {
     namespace = "Com.fire_AI.in"
-    // Material 3 Expressive (material3 1.5.0-alpha) and current Compose need compileSdk 36.
-    // minSdk 24 / targetSdk 34 keep behaviour identical on older TV boxes.
     compileSdk = 37
 
     defaultConfig {
         applicationId = "Com.fire_AI.in"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
 
     buildTypes {
@@ -36,13 +34,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    buildFeatures {
-        compose = true
-    }
+    buildFeatures { compose = true }
 
     signingConfigs {
         create("release") {
-            // The permanent keystore stays outside the repository.
             storeFile = file(System.getenv("FIRE_AI_KEYSTORE") ?: "/home/ubuntu/fire-ai-for-tv-keys/fire-ai-release.jks")
             storePassword = System.getenv("FIRE_AI_KEYSTORE_PASSWORD") ?: ""
             keyAlias = "fire-ai-release"
@@ -60,20 +55,15 @@ android {
 }
 
 kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
+    compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
 }
 
 dependencies {
-    // Networking: OkHttp for the Gemini REST API (JSON uses the built-in org.json)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Jetpack Compose
     implementation(platform("androidx.compose:compose-bom:2026.08.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
-    // Expressive APIs live in the 1.5.0 alphas, so this overrides the BOM's 1.4.0.
     implementation("androidx.compose.material3:material3:1.5.0-alpha26")
 
     implementation("androidx.activity:activity-compose:1.11.0")
@@ -81,7 +71,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     implementation("androidx.core:core-ktx:1.17.0")
 
-    // Firebase Authentication + modern Google Credential Manager sign-in.
     implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("androidx.credentials:credentials:1.5.0")

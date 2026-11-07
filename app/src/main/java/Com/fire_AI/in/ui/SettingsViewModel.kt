@@ -3,6 +3,7 @@ package Com.fire_AI.`in`.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import Com.fire_AI.`in`.data.FreeTier
 import Com.fire_AI.`in`.data.GeminiClient
 import Com.fire_AI.`in`.data.GeminiError
 import Com.fire_AI.`in`.data.KeyVault
@@ -26,7 +27,10 @@ data class SettingsUiState(
     val model: String = "",
     val temperature: Float = 0.7f,
     val streaming: Boolean = true,
-    val models: List<ModelInfo> = emptyList(),
+    val keyboardMode: String = "auto",
+    val autoSendVoice: Boolean = false,
+    /** Every model the API returned for this key (null until loaded). Eligibility is decided in the UI via FreeTier. */
+    val models: List<ModelInfo>? = null,
     val busy: Boolean = false,
     val status: StatusLine? = null,
 )
@@ -43,13 +47,15 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             model = settings.model,
             temperature = settings.temperature,
             streaming = settings.streaming,
+            keyboardMode = settings.keyboardMode,
+            autoSendVoice = settings.autoSendVoice,
         )
     )
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
 
     fun saveKey(input: String) {
         if (input.isBlank()) {
-            _state.update { it.copy(status = StatusLine("Paste your Gemini API key first.", true)) }
+            _state.update { it.copy(status = StatusLine("Enter your Gemini API key first.", true)) }
             return
         }
         viewModelScope.launch {
@@ -59,15 +65,20 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 SaveResult.SessionOnly ->
                     "This device's secure storage isn't working, so the key is kept in memory only. You'll need to enter it again after the app closes."
             }
-            _state.update { it.copy(hasKey = true, status = StatusLine(text, false)) }
+            _state.update { it.copy(hasKey = true, models = null, status = StatusLine(text, false)) }
         }
     }
 
     fun clearKey() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) { vault.clear() }
-            _state.update { it.copy(hasKey = false, models = emptyList(), status = StatusLine("API key removed.", false)) }
+            _state.update { it.copy(hasKey = false, models = null, status = StatusLine("API key removed.", false)) }
         }
+    }
+
+    fun loadModelsIfNeeded() {
+        val s = _state.value
+        if (s.hasKey && s.models == null && !s.busy) testConnection()
     }
 
     /** Fetches the model list from the API. A successful call proves the key works. */
@@ -81,13 +92,14 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(busy = true, status = StatusLine("Contacting Gemini...", false)) }
             try {
                 val models = client.listModels(key)
-                val selected = _state.value.model
-                val text = when {
-                    models.isEmpty() -> "Connected, but Gemini returned no usable models."
-                    models.any { it.id == selected } -> "Connected. ${models.size} models available."
-                    else -> "Connected, but \"$selected\" isn't in your model list. Choose another model below."
+                val free = models.count { FreeTier.isFree(it.id) }
+                _state.update {
+                    it.copy(
+                        busy = false,
+                        models = models,
+                        status = StatusLine("Connected. Your key can see ${models.size} models, $free on the free tier list.", false),
+                    )
                 }
-                _state.update { it.copy(busy = false, models = models, status = StatusLine(text, false)) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: GeminiError) {
@@ -112,5 +124,15 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setStreaming(on: Boolean) {
         settings.streaming = on
         _state.update { it.copy(streaming = on) }
+    }
+
+    fun setKeyboardMode(mode: String) {
+        settings.keyboardMode = mode
+        _state.update { it.copy(keyboardMode = mode) }
+    }
+
+    fun setAutoSendVoice(on: Boolean) {
+        settings.autoSendVoice = on
+        _state.update { it.copy(autoSendVoice = on) }
     }
 }

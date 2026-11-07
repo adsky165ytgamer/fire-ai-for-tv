@@ -23,6 +23,7 @@ import org.json.JSONObject
 
 /** User-facing failures. The message is safe to show on screen as is. */
 sealed class GeminiError(message: String) : Exception(message) {
+    class NoModel : GeminiError("No model selected. Open Models and choose one.")
     class MissingKey : GeminiError("No API key is set. Open Settings and add your Gemini API key.")
     class InvalidKey : GeminiError("Gemini rejected the API key. Check the key in Settings, make sure it is enabled in Google AI Studio, then save it again.")
     class Network : GeminiError("Can't reach Gemini. Check the internet connection and try again.")
@@ -116,7 +117,15 @@ class GeminiClient(
                     var ok = false
                     for (j in 0 until methods.length()) if (methods.optString(j) == "generateContent") ok = true
                     if (!ok) continue
-                    add(ModelInfo(id, m.optString("displayName").ifBlank { id }))
+                    add(
+                        ModelInfo(
+                            id = id,
+                            displayName = m.optString("displayName").ifBlank { id },
+                            inputTokenLimit = m.optInt("inputTokenLimit"),
+                            outputTokenLimit = m.optInt("outputTokenLimit"),
+                            thinking = m.optBoolean("thinking"),
+                        )
+                    )
                 }
             }.sortedBy { it.id }
         }

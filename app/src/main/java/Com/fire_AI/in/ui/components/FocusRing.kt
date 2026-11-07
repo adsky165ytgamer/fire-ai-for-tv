@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.border
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -14,12 +15,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
+/** False while the last input was a touch or mouse press, so touch users don't see remote-style focus outlines. */
+val LocalShowFocus = compositionLocalOf { true }
+
 /** Bold outline that shows while this element (or a child) has focus. Essential for D-pad use. */
 @Composable
 fun Modifier.focusRing(shape: Shape): Modifier {
     var focused by remember { mutableStateOf(false) }
+    val show = LocalShowFocus.current
     val color by animateColorAsState(
-        targetValue = if (focused) MaterialTheme.colorScheme.primary else Color.Transparent,
+        targetValue = if (focused && show) MaterialTheme.colorScheme.primary else Color.Transparent,
         animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
         label = "focusRing",
     )

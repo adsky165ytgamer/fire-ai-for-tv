@@ -1,6 +1,12 @@
 package Com.fire_AI.`in`.ui
 
-import androidx.compose.foundation.background
+import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
@@ -9,11 +15,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,9 +27,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -32,8 +41,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,57 +51,84 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import Com.fire_AI.`in`.data.Author
 import Com.fire_AI.`in`.data.ChatMessage
 import Com.fire_AI.`in`.ui.components.MarkdownText
+import Com.fire_AI.`in`.ui.components.TextEntry
 import Com.fire_AI.`in`.ui.components.focusRing
+import Com.fire_AI.`in`.ui.components.rememberVoiceInput
 import kotlinx.coroutines.launch
 
 private val PillShape = RoundedCornerShape(50)
 
 /**
- * TV-first layout: a side rail for actions and a wide conversation area.
- * Every control is reachable by touch, air-mouse, keyboard and D-pad.
+ * TV-first layout: a side rail for navigation and a wide conversation area.
+ * Only the right-hand column resizes when a system keyboard opens (imePadding is applied once, there).
  */
 @Composable
 fun ChatScreen(
     state: ChatUiState,
     isTv: Boolean,
+    useFireKeyboard: Boolean,
+    autoSendVoice: Boolean,
     onSend: (String) -> Boolean,
     onStop: () -> Unit,
+    onRegenerate: () -> Unit,
+    onClear: () -> Unit,
     onNewChat: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenModels: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var text by rememberSaveable { mutableStateOf("") }
+    var kbOpen by rememberSaveable { mutableStateOf(false) }
+
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
         SideRail(
             state = state,
             isTv = isTv,
             onNewChat = onNewChat,
             onOpenHistory = onOpenHistory,
+            onOpenModels = onOpenModels,
             onOpenSettings = onOpenSettings,
-            modifier = Modifier.width(if (isTv) 280.dp else 210.dp).fillMaxHeight(),
+            modifier = Modifier.width(if (isTv) 270.dp else 200.dp).fillMaxHeight(),
         )
-        Column(modifier = Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight().imePadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             ConversationPane(
                 state = state,
+                keyboardOpen = kbOpen,
                 onOpenSettings = onOpenSettings,
+                onOpenModels = onOpenModels,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             )
-            InputRow(isTv = isTv, isStreaming = state.isStreaming, onSend = onSend, onStop = onStop)
+            if (!kbOpen && state.messages.isNotEmpty() && !state.isStreaming) {
+                ControlsRow(state = state, onRegenerate = onRegenerate, onClear = onClear)
+            }
+            InputArea(
+                isTv = isTv,
+                useFireKeyboard = useFireKeyboard,
+                autoSendVoice = autoSendVoice,
+                isStreaming = state.isStreaming,
+                text = text,
+                onTextChange = { text = it },
+                kbOpen = kbOpen,
+                onKbChange = { kbOpen = it },
+                onSend = onSend,
+                onStop = onStop,
+            )
         }
     }
 }
@@ -106,46 +140,59 @@ private fun SideRail(
     isTv: Boolean,
     onNewChat: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenModels: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val buttonHeight = if (isTv) 64.dp else 52.dp
+    val h = if (isTv) 60.dp else 48.dp
     Surface(modifier = modifier, shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainer) {
-        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("TV AI", style = MaterialTheme.typography.headlineLargeEmphasized, color = MaterialTheme.colorScheme.onSurface)
+        Column(
+            Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Fire AI", style = MaterialTheme.typography.headlineLargeEmphasized, color = MaterialTheme.colorScheme.onSurface)
             Text(
-                text = if (state.hasKey) state.model else "No API key",
+                text = when {
+                    !state.hasKey -> "No API key"
+                    state.model.isBlank() -> "No model selected"
+                    else -> state.model
+                },
                 style = MaterialTheme.typography.labelLarge,
-                color = if (state.hasKey) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                color = if (state.hasKey && state.model.isNotBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.weight(1f))
-            FilledTonalButton(
-                onClick = onNewChat,
-                shapes = ButtonDefaults.shapes(),
-                modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight).focusRing(PillShape),
-            ) { Text("New chat") }
-            FilledTonalButton(
-                onClick = onOpenHistory,
-                shapes = ButtonDefaults.shapes(),
-                modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight).focusRing(PillShape),
-            ) { Text("History") }
-            FilledTonalButton(
-                onClick = onOpenSettings,
-                shapes = ButtonDefaults.shapes(),
-                modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight).focusRing(PillShape),
-            ) { Text("Settings") }
+            RailButton("New Chat", h, onNewChat)
+            RailButton("History", h, onOpenHistory)
+            RailButton("Models", h, onOpenModels)
+            RailButton("Settings", h, onOpenSettings)
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ConversationPane(state: ChatUiState, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+private fun RailButton(label: String, minHeight: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        shapes = ButtonDefaults.shapes(),
+        modifier = Modifier.fillMaxWidth().heightIn(min = minHeight).focusRing(PillShape),
+    ) { Text(label) }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalLayoutApi::class)
+@Composable
+private fun ConversationPane(
+    state: ChatUiState,
+    keyboardOpen: Boolean,
+    onOpenSettings: () -> Unit,
+    onOpenModels: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val shape = MaterialTheme.shapes.extraLarge
+    val imeVisible = WindowInsets.isImeVisible
 
     val itemCount = state.messages.size + if (state.isStreaming) 1 else 0
     val lastIndex = itemCount - 1
@@ -153,6 +200,10 @@ private fun ConversationPane(state: ChatUiState, onOpenSettings: () -> Unit, mod
     // Jump to the newest item when a message is added or streaming starts.
     LaunchedEffect(state.messages.size, state.isStreaming) {
         if (lastIndex >= 0) listState.animateScrollToItem(lastIndex)
+    }
+    // The pane shrinks when a keyboard opens; keep the latest message in view.
+    LaunchedEffect(keyboardOpen, imeVisible) {
+        if (lastIndex >= 0) listState.scrollToItem(lastIndex)
     }
     // Follow the stream, but only while the reader is already at the bottom.
     LaunchedEffect(state.streamingText.length / 60) {
@@ -187,27 +238,28 @@ private fun ConversationPane(state: ChatUiState, onOpenSettings: () -> Unit, mod
     ) {
         if (itemCount == 0) {
             Column(
-                Modifier.fillMaxSize().padding(32.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
+                Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (state.hasKey) {
-                    Text(
-                        "Ask anything. Select the message box to type.",
-                        style = MaterialTheme.typography.titleLargeEmphasized,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    Text(
-                        "Add your Gemini API key to start chatting.",
-                        style = MaterialTheme.typography.titleLargeEmphasized,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Button(
-                        onClick = onOpenSettings,
-                        shapes = ButtonDefaults.shapes(),
-                        modifier = Modifier.heightIn(min = 56.dp).focusRing(PillShape),
-                    ) { Text("Open Settings") }
+                when {
+                    !state.hasKey -> {
+                        Text("Add your Gemini API key to start.", style = MaterialTheme.typography.titleLargeEmphasized, color = MaterialTheme.colorScheme.onSurface)
+                        Button(
+                            onClick = onOpenSettings,
+                            shapes = ButtonDefaults.shapes(),
+                            modifier = Modifier.heightIn(min = 56.dp).focusRing(PillShape),
+                        ) { Text("Open Settings") }
+                    }
+                    state.model.isBlank() -> {
+                        Text("Choose a model to start.", style = MaterialTheme.typography.titleLargeEmphasized, color = MaterialTheme.colorScheme.onSurface)
+                        Button(
+                            onClick = onOpenModels,
+                            shapes = ButtonDefaults.shapes(),
+                            modifier = Modifier.heightIn(min = 56.dp).focusRing(PillShape),
+                        ) { Text("Open Models") }
+                    }
+                    else -> Text("Ask anything.", style = MaterialTheme.typography.titleLargeEmphasized, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         } else {
@@ -221,6 +273,45 @@ private fun ConversationPane(state: ChatUiState, onOpenSettings: () -> Unit, mod
                 if (state.isStreaming) item(key = "streaming") { StreamingBubble(state.streamingText) }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ControlsRow(state: ChatUiState, onRegenerate: () -> Unit, onClear: () -> Unit) {
+    val context = LocalContext.current
+    var confirmClear by remember { mutableStateOf(false) }
+    var copied by remember { mutableStateOf(false) }
+    val lastReply = state.messages.lastOrNull { it.author == Author.Model && !it.isError }?.text
+    val hasUserMessage = state.messages.any { it.author == Author.User && !it.isError }
+
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        FilledTonalButton(
+            onClick = { confirmClear = false; onRegenerate() },
+            enabled = hasUserMessage,
+            shapes = ButtonDefaults.shapes(),
+            modifier = Modifier.heightIn(min = 48.dp).focusRing(PillShape),
+        ) { Text("Regenerate") }
+        FilledTonalButton(
+            onClick = {
+                confirmClear = false
+                if (lastReply != null) {
+                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("Fire AI reply", lastReply))
+                    copied = true
+                }
+            },
+            enabled = lastReply != null,
+            shapes = ButtonDefaults.shapes(),
+            modifier = Modifier.heightIn(min = 48.dp).focusRing(PillShape),
+        ) { Text(if (copied) "Copied" else "Copy reply") }
+        FilledTonalButton(
+            onClick = {
+                if (confirmClear) { confirmClear = false; onClear() } else confirmClear = true
+            },
+            shapes = ButtonDefaults.shapes(),
+            modifier = Modifier.heightIn(min = 48.dp).focusRing(PillShape),
+        ) { Text(if (confirmClear) "Select again to clear this chat" else "Clear chat") }
     }
 }
 
@@ -277,60 +368,74 @@ private fun StreamingBubble(text: String) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun InputRow(isTv: Boolean, isStreaming: Boolean, onSend: (String) -> Boolean, onStop: () -> Unit) {
-    var text by rememberSaveable { mutableStateOf("") }
-    val requester = remember { FocusRequester() }
-    val fieldShape = MaterialTheme.shapes.extraLarge
-
-    // On TV, start with the input focused so OK on the remote opens the keyboard.
-    LaunchedEffect(Unit) {
-        if (isTv) runCatching { requester.requestFocus() }
-    }
+private fun InputArea(
+    isTv: Boolean,
+    useFireKeyboard: Boolean,
+    autoSendVoice: Boolean,
+    isStreaming: Boolean,
+    text: String,
+    onTextChange: (String) -> Unit,
+    kbOpen: Boolean,
+    onKbChange: (Boolean) -> Unit,
+    onSend: (String) -> Boolean,
+    onStop: () -> Unit,
+) {
+    val context = LocalContext.current
 
     fun submit() {
         val t = text.trim()
-        if (t.isNotEmpty() && !isStreaming && onSend(t)) text = ""
+        if (t.isNotEmpty() && !isStreaming && onSend(t)) {
+            onTextChange("")
+            onKbChange(false)
+        }
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TextField(
+    val voice = rememberVoiceInput { result ->
+        val merged = (text + " " + result).trim()
+        if (autoSendVoice && onSend(merged)) onTextChange("") else onTextChange(merged)
+    }
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) voice.start() else voice.report("Microphone permission was denied. You can still type your message.")
+    }
+    val onMic: () -> Unit = {
+        when {
+            voice.listening -> voice.stop()
+            !voice.available -> voice.report("Voice typing isn't available on this device. Use the keyboard instead.")
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> voice.start()
+            else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        val status = if (voice.listening) "Listening... ${voice.partial}".trim() else voice.message
+        if (status != null) {
+            Text(status, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        TextEntry(
             value = text,
-            onValueChange = { text = it },
-            modifier = Modifier
-                .weight(1f)
-                .onPreviewKeyEvent { e ->
-                    // Physical keyboard: Enter sends, Shift+Enter adds a new line.
-                    if (e.type == KeyEventType.KeyDown && (e.key == Key.Enter || e.key == Key.NumPadEnter) && !e.isShiftPressed) {
-                        submit()
-                        true
-                    } else false
-                }
-                .focusRing(fieldShape)
-                .focusRequester(requester),
-            placeholder = { Text("Message") },
-            textStyle = MaterialTheme.typography.bodyLarge,
-            shape = fieldShape,
-            maxLines = 4,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            keyboardActions = KeyboardActions(onSend = { submit() }),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            ),
+            onValueChange = onTextChange,
+            placeholder = "Message",
+            useFireKeyboard = useFireKeyboard,
+            isTv = isTv,
+            keyboardVisible = kbOpen,
+            onKeyboardVisibleChange = onKbChange,
+            onSubmit = ::submit,
+            submitLabel = "Send",
+            trailing = {
+                FilledTonalButton(
+                    onClick = onMic,
+                    shapes = ButtonDefaults.shapes(),
+                    modifier = Modifier.heightIn(min = if (isTv) 60.dp else 52.dp).focusRing(PillShape),
+                ) { Text(if (voice.listening) "Stop mic" else "Mic") }
+                Button(
+                    onClick = { if (isStreaming) onStop() else submit() },
+                    enabled = isStreaming || text.isNotBlank(),
+                    shapes = ButtonDefaults.shapes(),
+                    modifier = Modifier.heightIn(min = if (isTv) 60.dp else 52.dp).widthIn(min = 96.dp).focusRing(PillShape),
+                ) { Text(if (isStreaming) "Stop" else "Send") }
+            },
         )
-        Button(
-            onClick = { if (isStreaming) onStop() else submit() },
-            enabled = isStreaming || text.isNotBlank(),
-            shapes = ButtonDefaults.shapes(),
-            modifier = Modifier.heightIn(min = if (isTv) 64.dp else 56.dp).widthIn(min = 104.dp).focusRing(PillShape),
-        ) { Text(if (isStreaming) "Stop" else "Send") }
     }
 }

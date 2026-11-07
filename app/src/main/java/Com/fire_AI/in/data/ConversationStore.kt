@@ -66,6 +66,18 @@ class ConversationStore(context: Context) {
         }
     }
 
+    suspend fun rename(id: String, title: String) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val f = file(id)
+            if (f.exists()) {
+                val o = JSONObject(f.readText())
+                o.put("title", title)
+                writeAtomic(f, o.toString())
+                writeIndex(readIndex().map { if (it.id == id) it.copy(title = title) else it })
+            }
+        }
+    }
+
     private fun readIndex(): List<ConversationSummary> = try {
         val arr = JSONArray(indexFile().takeIf { it.exists() }?.readText() ?: "[]")
         (0 until arr.length()).map { i ->

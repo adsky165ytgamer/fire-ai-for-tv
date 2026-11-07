@@ -6,8 +6,9 @@ class SettingsStore(context: Context) {
 
     private val prefs = context.applicationContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
+    /** Empty until the user picks a model from the verified list in Models. */
     var model: String
-        get() = prefs.getString("model", DEFAULT_MODEL) ?: DEFAULT_MODEL
+        get() = prefs.getString("model", "") ?: ""
         set(value) { prefs.edit().putString("model", value).apply() }
 
     var temperature: Float
@@ -18,8 +19,12 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean("streaming", true)
         set(value) { prefs.edit().putBoolean("streaming", value).apply() }
 
-    companion object {
-        /** Used until the user picks another model. The available list is fetched from the API in Settings. */
-        const val DEFAULT_MODEL = "gemini-2.5-flash"
-    }
+    /** "auto" (Fire AI keyboard on TV, system keyboard on phones), "fire" or "system". */
+    var keyboardMode: String
+        get() = prefs.getString("keyboardMode", "auto") ?: "auto"
+        set(value) { prefs.edit().putString("keyboardMode", value).apply() }
+
+    var autoSendVoice: Boolean
+        get() = prefs.getBoolean("autoSendVoice", false)
+        set(value) { prefs.edit().putBoolean("autoSendVoice", value).apply() }
 }

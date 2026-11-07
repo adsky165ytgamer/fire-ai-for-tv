@@ -18,4 +18,10 @@ data class Conversation(
 
 data class ConversationSummary(val id: String, val title: String, val updatedAt: Long)
 
-data class ModelInfo(val id: String, val displayName: String)
+data class ModelInfo(
+    val id: String,
+    val displayName: String,
+    val inputTokenLimit: Int = 0,
+    val outputTokenLimit: Int = 0,
+    val thinking: Boolean = false,
+)

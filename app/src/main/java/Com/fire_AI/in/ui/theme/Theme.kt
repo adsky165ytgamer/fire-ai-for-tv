@@ -62,7 +62,7 @@ private fun typographyFor(isTv: Boolean): Typography {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun TvAiTheme(isTv: Boolean, content: @Composable () -> Unit) {
+fun FireAiTheme(isTv: Boolean, content: @Composable () -> Unit) {
     val dark = isTv || isSystemInDarkTheme()
     val context = LocalContext.current
     val colors = when {

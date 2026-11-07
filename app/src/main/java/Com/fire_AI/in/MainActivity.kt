@@ -22,9 +22,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import Com.fire_AI.`in`.ui.AuthScreen
 import Com.fire_AI.`in`.ui.ChatViewModel
+import Com.fire_AI.`in`.ui.FireAiApp
 import Com.fire_AI.`in`.ui.SettingsViewModel
-import Com.fire_AI.`in`.ui.TvAiApp
-import Com.fire_AI.`in`.ui.theme.TvAiTheme
+import Com.fire_AI.`in`.ui.theme.FireAiTheme
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -72,8 +72,6 @@ class MainActivity : ComponentActivity() {
         authError = null
         renderUi()
         if (isTvDevice) {
-            // Android TV commonly has no Credential Provider UI. Use the proven
-            // Play Services account picker instead of reporting "no credentials".
             launchLegacyGooglePicker()
             return
         }
@@ -84,14 +82,11 @@ class MainActivity : ComponentActivity() {
                     .setServerClientId(getString(R.string.default_web_client_id))
                     .setAutoSelectEnabled(false)
                     .build()
-                val request = GetCredentialRequest.Builder()
-                    .addCredentialOption(googleIdOption)
-                    .build()
+                val request = GetCredentialRequest.Builder().addCredentialOption(googleIdOption).build()
                 val result = credentialManager.getCredential(this@MainActivity, request)
                 val credential = GoogleIdTokenCredential.createFrom(result.credential.data)
                 finishFirebaseSignIn(credential.idToken)
             } catch (_: GetCredentialException) {
-                // Phones without a Credential Provider still get a working sign-in.
                 launchLegacyGooglePicker()
             } catch (e: Exception) {
                 authLoading = false
@@ -114,7 +109,7 @@ class MainActivity : ComponentActivity() {
     private suspend fun finishFirebaseSignIn(idToken: String?) {
         if (idToken.isNullOrBlank()) {
             authLoading = false
-            authError = "Google did not return an ID token. Check the Firebase OAuth client and SHA-1 registration."
+            authError = "Google did not return an ID token. Check Firebase OAuth and SHA-1 registration."
             renderUi()
             return
         }
@@ -133,16 +128,14 @@ class MainActivity : ComponentActivity() {
         finishFirebaseSignIn(account.idToken)
     }
 
-    private fun renderUi() {
-        setContent { renderUiContent() }
-    }
+    private fun renderUi() { setContent { renderUiContent() } }
 
     @Composable
     private fun renderUiContent() {
         val user = auth.currentUser
-        TvAiTheme(isTv = isTvDevice) {
+        FireAiTheme(isTv = isTvDevice) {
             if (user != null || offlineMode) {
-                TvAiApp(chatViewModel, settingsViewModel, isTvDevice, user?.email)
+                FireAiApp(chatViewModel, settingsViewModel, isTvDevice)
             } else {
                 AuthScreen(
                     isTv = isTvDevice,
